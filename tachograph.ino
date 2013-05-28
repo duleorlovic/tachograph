@@ -7,7 +7,11 @@
 // TODO: analogReadResolution to 9 bits
 
 #define chipSelectPin 10    // this is used in max7219.h
+<<<<<<< HEAD
 #define USE_SERIAL
+=======
+//#define USE_SERIAL
+>>>>>>> fc2b9bd2864f67812bf1dac5dea2fea84377bd31
 #define SAMPLE_SIZE 2000
 
 #include <EEPROM.h>
@@ -55,6 +59,10 @@ void setup() {
    mySerial.println("start");
   SPI.begin();
   max7219_init1();               // initialize  max7219 
+<<<<<<< HEAD
+=======
+
+>>>>>>> fc2b9bd2864f67812bf1dac5dea2fea84377bd31
 
   if (digitalRead(RecordPin))
   {
@@ -64,6 +72,7 @@ void setup() {
   }
   else
   {
+<<<<<<< HEAD
    mySerial.println("recording state");
 //    unsigned int hist[512];  // this reserve 512*2=1KB RAM
 //    for(int i=0;i<512;i++)
@@ -76,12 +85,23 @@ void setup() {
     
     bool shouldRestartCalculation = false;
     display_number(0);
+=======
+#ifdef USE_SERIAL
+   Serial.println("recording state");
+#endif
+    unsigned int peak1 = 1000; 
+    unsigned int peak2 = 0; 
+
+
+    digitalWrite(LedPin,HIGH);
+>>>>>>> fc2b9bd2864f67812bf1dac5dea2fea84377bd31
 
     peakLow = 1000; // here we store low value
     peakHigh = 0;   // here we store high value of noise
     // analogRead takes 100us=0.1ms, 
     // but oscilation are on 10ms (light) and  1ms (7 seg display)
     // so 15ms = 150*0.1ms
+<<<<<<< HEAD
     for (int i=0;i<150;i++)
     { 
         int temp = analogRead(SensorPin);
@@ -226,11 +246,126 @@ void setup() {
     mySerial.println(highTreshold);
     mySerial.print("lowThreshold ");
     mySerial.println(lowThreshold);
+=======
+    // delay 1 is 15
+    for (int i=0;i<15;i++)
+      { 
+        int temp = analogRead(SensorPin);
+        if (temp<peak1)
+          peak1=temp;
+        if (temp>peak2)
+          peak2 = temp;
+        delay(1);
+      }
+      
+    unsigned int hist[512];
+    unsigned int minValue = 1024; 
+    unsigned int maxValue = 0; 
+    for(int i=0;i<512;i++)
+      hist[i]=0;    
+
+  
+    while(! digitalRead(RecordPin))
+    {
+      int temp = analogRead(SensorPin);
+
+      if (temp > maxValue)
+      {
+        maxValue = temp;
+      }
+      if (temp < minValue)
+      {
+        minValue = temp;
+      }
+      display_number(maxValue - minValue);
+
+      hist[temp/2]++;
+      if (hist[temp/2]==SAMPLE_SIZE) //65535
+      {
+#ifdef USE_SERIAL
+                Serial.println("stop measuring, start calculating");
+#endif                
+             
+         digitalWrite(LedPin,LOW);
+//        display_number(++counter*100);
+        int i;
+        for(i=minValue/2+2;i<maxValue/2;i++)
+        {
+          if (hist[i]>SAMPLE_SIZE/5)
+            break;
+        }
+
+        lowThreshold = i*2 - (peak2-peak1);
+//        lowThreshold = (minValue + i*2)/2;
+        if (lowThreshold < minValue)
+        {
+#ifdef USE_SERIAL
+          Serial.print("lowThreshold < minValue ");
+          Serial.print(lowThreshold);
+          Serial.print(" ");
+          Serial.println(minValue);
+#endif
+          lowThreshold = (i*2 + minValue) / 2;
+        } 
+         
+        treshold = i*2 + (signed)(peak2-peak1);
+ //       treshold = (i*2 + maxValue) / 2;
+        
+        if (treshold > maxValue)
+        {
+#ifdef USE_SERIAL
+          Serial.print("treshold > maxValue ");
+          Serial.print(treshold);
+          Serial.print(" ");
+          Serial.println(maxValue);
+#endif
+          treshold = (i*2 + maxValue) / 2;
+        } 
+        
+
+#ifdef USE_SERIAL
+        Serial.print("minValue ");
+        Serial.println(minValue);
+        Serial.print("maxValue ");
+        Serial.println(maxValue);
+        Serial.print("peak2 - peak1 = ");
+        Serial.print(peak2);    
+        Serial.print(" - ");
+        Serial.print(peak1);
+        Serial.print(" = ");
+        Serial.println(peak2 - peak1);
+        Serial.print("2*i ");
+        Serial.println(2*i);
+        Serial.print("threshold ");
+        Serial.println(treshold);
+        Serial.print("lowThreshold ");
+        Serial.println(lowThreshold);
+    
+        for(int i=0;i<512;i++)
+        {
+          Serial.println(hist[i]);
+        }
+#endif   
+      display_number(treshold);
+      while(! digitalRead(RecordPin));
+
+      }
+      
+    
+    }
+  
+>>>>>>> fc2b9bd2864f67812bf1dac5dea2fea84377bd31
  
     EEPROM_writeAnything(0, highTreshold);
     EEPROM_writeAnything(10, lowThreshold);
   
+<<<<<<< HEAD
   } // if (digitalRead(RecordPin))
+=======
+  } //end digitalRead
+
+
+>>>>>>> fc2b9bd2864f67812bf1dac5dea2fea84377bd31
 
   display_number(counter);
 
@@ -254,7 +389,16 @@ void loop(){
       counter = 0;
     display_number(counter);
     delay(2);
+<<<<<<< HEAD
     mySerial.println(counter);
+=======
+#ifdef USE_SERIAL
+    Serial.println(counter);
+ //       Serial.println("       ");
+
+#endif
+
+>>>>>>> fc2b9bd2864f67812bf1dac5dea2fea84377bd31
   }
 } // void loop(){
 
