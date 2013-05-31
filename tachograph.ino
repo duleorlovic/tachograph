@@ -6,7 +6,6 @@
 // Januar 2013.
 // TODO: analogReadResolution to 9 bits
 
-#define chipSelectPin 10    // this is used in max7219.h
 #define USE_SERIAL
 //#define SAVE_SAMPLE
 //#define SAVE_HIST
@@ -15,12 +14,22 @@
 #include "EEPROMAnything.h"
 
 #include <SPI.h>
+#define chipSelectPin 10    // this is used in max7219.h, also 12 and 13 pin+
 #include "max7219.h"
 
-const int SensorPin = A1;
-const int ResistorPin = A2;
-const int RecordPin = 5;
-const int LedPin = 4;
+const int SensorPin = A0;
+//const int ResistorPin = A2;
+const int RecordPin = 6;
+const int LedPin = 7;
+const int StopRelayPin = 9;
+const int SlowDownRelayPin = 8;
+
+const int FirstNumberPin = A4;
+const int SecondNumberPin = A3;
+const int ThirdNumberPin = A5;
+const int FourthNumberPin = A2;
+const int FifthNumberPin = A1;
+
 
 #ifdef USE_SERIAL
    #define mySerial Serial
@@ -36,7 +45,8 @@ const int LedPin = 4;
   } mySerial;
 #endif
 
-int counter = 0; 
+int counter = 0;
+int targetCounter = 0;
 int highTreshold = 0; 
 int lowThreshold = 1024; 
 
@@ -48,14 +58,32 @@ void setup() {
 //  pinMode(RecordPin,INPUT);
   pinMode(LedPin,OUTPUT);
   pinMode(chipSelectPin, OUTPUT);
-//  pinMode(A6,INPUT);//we have connected 5 V here only because connector
-  digitalWrite(A6,HIGH);
+  pinMode( SlowDownRelayPin, OUTPUT);
+  pinMode(StopRelayPin, OUTPUT);
   digitalWrite(RecordPin,HIGH); // pull up resistor
 
   mySerial.begin(9600);
   mySerial.println("start");
   SPI.begin();
   max7219_init1();               // initialize  max7219 
+  int numberAnalog[5];
+  numberAnalog[0] = analogRead(FirstNumberPin);
+  numberAnalog[1] = analogRead(SecondNumberPin);
+  numberAnalog[2] = analogRead(ThirdNumberPin);
+  numberAnalog[3] = analogRead(FourthNumberPin);
+  numberAnalog[4] = analogRead(FifthNumberPin);
+  mySerial.print("   ");
+  int decade = 1;
+  for (int i =0;i<4;i++)
+  {
+    mySerial.print(numberAnalog[i]);
+    mySerial.print(" ");
+    targetCounter += (numberAnalog[i]+32)/64 * decade;
+    decade *= 10;
+  }
+  mySerial.println(targetCounter);
+  display_number(targetCounter);
+  delay(3000);
 
 #ifdef SAVE_SAMPLE
 // rm screenlog.0
@@ -65,7 +93,6 @@ void setup() {
     for(int i=0;i<512;i++)
       hist[i]=0;
     int temp;
-    
     
     do 
     {
@@ -314,6 +341,12 @@ void loop(){
     display_number(counter);
     delay(2);
     mySerial.println(counter);
+    if (counter == targetCounter)
+    {
+       digitalWrite(StopRelayPin,HIGH);
+       delay(2000);
+       digitalWrite(StopRelayPin,LOW);
+    }
   }
 } // void loop(){
 #endif  //#ifdef SAVE_SAMPLE
