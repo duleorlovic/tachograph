@@ -6,7 +6,7 @@
 // Januar 2013.
 // TODO: analogReadResolution to 9 bits
 
-//#define USE_SERIAL
+#define USE_SERIAL
 //#define SAVE_SAMPLE
 //#define SAVE_HIST
 
@@ -63,17 +63,9 @@ bool LightDetected = false;  // assume that we start when there is no light
 void updateSecondCounter()
 {
   unsigned long now = millis();
-  if (now - timeLast > 10)
+  if (now - timeLast > 15)
   {
     secondCounter++;
-    if (secondCounter == targetCounter - SLOW_DOWN)
-    {
-       digitalWrite(SlowDownRelayPin,LOW);
-    }
-    if (secondCounter == targetCounter)
-    {
-       digitalWrite(StopRelayPin,LOW);
-    }
   }
   timeLast = now;
 }
@@ -173,9 +165,9 @@ void loop(){
   {
    mySerial.println("recording state");
   
-    int maxOfMinumumValue = 0 ;    // greatest minim value when light is detected
+    int maxOfMinimumValue = 0 ;    // greatest minim value when light is detected
     int minOfMaximumValue = 1024;       // lowest maximum value when there is no light
-    int minMaxRange = 0; //  minOfMaximumValue - maxOfMinumumValue
+    int minMaxRange = 0; //  minOfMaximumValue - maxOfMinimumValue
     int peakLow = 1000; // here we store low value
     int peakHigh = 0;   // here we store high value of noise
     
@@ -197,6 +189,7 @@ void loop(){
 //        delay(1); i+=10; // if delay(1) is used then it should be 15 rounds
     }
     int peak = peakHigh - peakLow;
+    int peakLowTemp = peakLow;
     mySerial.print("peak ");
     mySerial.println(peak);
     display_number(peak);
@@ -207,31 +200,31 @@ void loop(){
     for (int i = 0;i<6;)
     {
        int temp = analogRead(SensorPin);
-       if (temp < maxOfMinimumValue)
+       if (temp < maxOfMinimumValue - peak)
        {
+         if (wasAbove)
+         {
+           i++;
+           wasAbove = false;
+           mySerial.println("above");
+           minOfMaximumValue = (minOfMaximumValue + peakHigh) / 2;
+         }
          if (temp<peakLow)
             peakLow=temp;
          wasBelow = true;
        }
-       if (wasBelow && temp > maxOfMinimumValue)
-       {
-         i++;
-         wasBelow = false;
-         mySerial.println("below maxMin");
-         maxOfMinimumValue = (maxOfMinimumValue + peakLow)/2;
-       }
        if (temp > minOfMaximumValue)
        {
+         if (wasBelow )
+         {
+           i++;
+           wasBelow = false;
+           mySerial.println("below maxMin");
+           maxOfMinimumValue = (maxOfMinimumValue + peakLow)/2;
+         }
          if (temp>peakHigh)
             peakHigh = temp;
           wasAbove = true;
-       }
-       if (wasAbove && temp < minOfMaximumValue)
-       {
-         i++;
-         wasAbove = false;
-         mySerial.println("above");
-         minOfMaximumValue = (minOfMaximumValue + peakHigh) / 2;
        }
     }
 
@@ -240,7 +233,7 @@ void loop(){
     
     int temp,localMax,  localMin ;
     bool detectedBetweenThresholds = false;
-    minOfMaximumValue = peakHigh;
+    minOfMaximumValue = peakLowTemp; //peakHigh;
     maxOfMinimumValue = peakLow;
     highThreshold = minOfMaximumValue - 20 ;
     lowThreshold = maxOfMinimumValue + 20;
@@ -276,9 +269,9 @@ void loop(){
                {
                  mySerial.print("localMin ");
                  mySerial.print(localMin);
-                 //display_number(localMin-maxOfMinumumValue);
-                 maxOfMinumumValue = localMin;
-                 lowThreshold = maxOfMinumumValue+20;//peak;
+                 //display_number(localMin-maxOfMinimumValue);
+                 maxOfMinimumValue = localMin;
+                 lowThreshold = maxOfMinimumValue+20;//peak;
                  mySerial.print(" RESET lowThreshold to ");
                  mySerial.println(lowThreshold);
                }
@@ -296,8 +289,8 @@ void loop(){
             //mySerial.print("minOfMaximumValue ");
             //mySerial.print(minOfMaximumValue);
             minOfMaximumValue = localMax;          
-            //mySerial.print(" -> ");
-            //mySerial.print(minOfMaximumValue);
+            mySerial.print(" -> ");
+            mySerial.print(minOfMaximumValue);
             mySerial.print(" H ");
             mySerial.print(highThreshold);
             mySerial.print(" -> ");
@@ -337,17 +330,17 @@ void loop(){
             }
             temp = analogRead(SensorPin);
           } // while(temp < highThreshold)
-          if (localMin > maxOfMinumumValue)
+          if (localMin > maxOfMinimumValue)
           {
-            //mySerial.print("maxOfMinumumValue ");
-            //mySerial.print(maxOfMinumumValue);
-            maxOfMinumumValue = localMin;
+            //mySerial.print("maxOfMinimumValue ");
+            //mySerial.print(maxOfMinimumValue);
+            maxOfMinimumValue = localMin;
             //mySerial.print(" ---------> ");
-            //mySerial.print(maxOfMinumumValue);
+            //mySerial.print(maxOfMinimumValue);
             mySerial.print(" L ");
             mySerial.print(lowThreshold);
             mySerial.print(" +> ");
-            lowThreshold = maxOfMinumumValue+20;//peak; //(lowThreshold + maxOfMinumumValue)/2;
+            lowThreshold = maxOfMinimumValue+20;//peak; //(lowThreshold + maxOfMinimumValue)/2;
             mySerial.println(lowThreshold);
           }          
           
@@ -362,14 +355,17 @@ void loop(){
             {
                mySerial.print("low range, reseting!!!");
                display_number(peakHigh);
-               turn_off(2000);
+               turn_off(600);
                display_number(highThreshold);
-               turn_off(2000);
+               delay(2000);
+               turn_off(600);
                display_number(lowThreshold);
-               turn_off(2000);
+               delay(2000);
+               turn_off(600);
                display_number(peakLow);
-               turn_off(2000);
-               minOfMaximumValue = peakHigh;
+               delay(2000);
+               turn_off(600);
+               minOfMaximumValue = peakLowTemp;//peakHigh;
                maxOfMinimumValue = peakLow;
                highThreshold = minOfMaximumValue - 20 ;
                lowThreshold = maxOfMinimumValue + 20;
@@ -380,8 +376,8 @@ void loop(){
       
     mySerial.print("minOfMaximumValue ");
     mySerial.println(minOfMaximumValue);
-    mySerial.print("maxOfMinumumValue ");
-    mySerial.println(maxOfMinumumValue);
+    mySerial.print("maxOfMinimumValue ");
+    mySerial.println(maxOfMinimumValue);
     mySerial.print("peakHigh - peakLow = ");
     mySerial.print(peakHigh);    
     mySerial.print(" - ");
@@ -419,20 +415,25 @@ void loop(){
     if (counter==10000)
       counter = 0;
     if (!wasSecondCounter)
+    {
       display_increment_number(counter);
+      
+      if (counter == targetCounter - SLOW_DOWN)
+      {
+         digitalWrite(SlowDownRelayPin,LOW);
+      }
+      if (counter == targetCounter)
+      {
+         digitalWrite(StopRelayPin,LOW);
+         digitalWrite(SlowDownRelayPin,HIGH);
+         delay(5000);
+         digitalWrite(StopRelayPin,HIGH);
+         secondCounter = displayedSecondCounter = 0;
+         counter = 0;
+         display_number(0);
+      }
+    }
     delay(5);
-    mySerial.println(counter);
-    if (counter == targetCounter - SLOW_DOWN)
-    {
-       digitalWrite(SlowDownRelayPin,LOW);
-    }
-    if (counter == targetCounter)
-    {
-       digitalWrite(StopRelayPin,LOW);
-       digitalWrite(SlowDownRelayPin,HIGH);
-       delay(1000);
-       digitalWrite(StopRelayPin,HIGH);
-    }
   }
   if (digitalRead(SecondDisplayPin))
   {
@@ -442,6 +443,20 @@ void loop(){
        {
           displayedSecondCounter = secondCounter;
           display_increment_number(displayedSecondCounter);
+          if (displayedSecondCounter == targetCounter - SLOW_DOWN)
+          {
+             digitalWrite(SlowDownRelayPin,LOW);
+          }
+          if (displayedSecondCounter == targetCounter)
+          {
+             digitalWrite(StopRelayPin,LOW);
+             delay(5000);
+             digitalWrite(StopRelayPin,HIGH);
+             digitalWrite(SlowDownRelayPin,HIGH);
+             secondCounter = displayedSecondCounter = 0;
+             counter = 0;
+             display_number(0);
+          }
        }
     }
     else
@@ -451,10 +466,13 @@ void loop(){
       display_number(displayedSecondCounter);
     }
   }
-  if (wasSecondCounter && ! digitalRead(SecondDisplayPin) )
+  else
   {
-    wasSecondCounter = false;
-    display_number(counter);
+    if (wasSecondCounter)
+    {
+      wasSecondCounter = false;
+      display_number(counter);
+    }
   }
 } // void loop(){
 #endif  //#ifdef SAVE_SAMPLE
