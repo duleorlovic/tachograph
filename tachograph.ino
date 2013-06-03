@@ -6,7 +6,7 @@
 // Januar 2013.
 // TODO: analogReadResolution to 9 bits
 
-#define USE_SERIAL
+//#define USE_SERIAL
 //#define SAVE_SAMPLE
 //#define SAVE_HIST
 
@@ -20,7 +20,9 @@
 #define SLOW_DOWN 10
 
 const int SensorPin = A0;
-//const int ResistorPin = A2;
+const int SecondDisplayPin = 4;
+const int MeterPin = 3;
+const int SecondSignalPin = 2;  // signal from second machine
 const int RecordPin = 6;
 const int LedPin = 7;
 const int StopRelayPin = 9;
@@ -48,12 +50,23 @@ const int FifthNumberPin = A1;
 #endif
 
 int counter = 0;
+volatile int secondCounter = 0;
+int displayedSecondCounter = 0;
 int targetCounter = 0;
 int highThreshold = 0; 
 int lowThreshold = 1024; 
+bool wasSecondCounter = false;
+volatile unsigned long timeLast = 0;
 
 bool LightDetected = false;  // assume that we start when there is no light
 
+void updateSecondCounter()
+{
+  unsigned long now = millis();
+  if (now - timeLast > 10)
+    secondCounter++;
+  timeLast = now;
+}
 void setup() { 
 //  pinMode(SensorPin,INPUT);
 //  pinMode(ResistorPin,INPUT);
@@ -63,8 +76,10 @@ void setup() {
   pinMode(SlowDownRelayPin, OUTPUT);
   pinMode(StopRelayPin, OUTPUT);
   digitalWrite(RecordPin,HIGH); // pull up resistor
+  digitalWrite(SecondDisplayPin,HIGH); // pull up resistor
   digitalWrite(SlowDownRelayPin,HIGH);  // disable slow down
   digitalWrite(StopRelayPin,HIGH);  // disable slow down
+  attachInterrupt(SecondSignalPin - 2, updateSecondCounter, FALLING);
 
   mySerial.begin(9600);
   mySerial.println("start");
@@ -350,7 +365,7 @@ void loop(){
   {
     digitalWrite(LedPin,HIGH);
     LightDetected = true;
-    delay(10);
+    delay(8);
   }
   if ( LightDetected && analogRead(SensorPin) > highThreshold)
   {
@@ -359,8 +374,9 @@ void loop(){
     counter++;
     if (counter==10000)
       counter = 0;
-    display_increment_number(counter);
-    delay(2);
+    if (!wasSecondCounter)
+      display_increment_number(counter);
+    delay(5);
     mySerial.println(counter);
     if (counter == targetCounter - SLOW_DOWN)
     {
@@ -373,6 +389,28 @@ void loop(){
        delay(1000);
        digitalWrite(StopRelayPin,HIGH);
     }
+  }
+  if (digitalRead(SecondDisplayPin))
+  {
+    if (wasSecondCounter)
+    {
+       if (secondCounter != displayedSecondCounter)
+       {
+          displayedSecondCounter = secondCounter;
+          display_increment_number(displayedSecondCounter);
+       }
+    }
+    else
+    {
+      wasSecondCounter = true;
+      displayedSecondCounter = secondCounter;
+      display_number(displayedSecondCounter);
+    }
+  }
+  if (wasSecondCounter && ! digitalRead(SecondDisplayPin) )
+  {
+    wasSecondCounter = false;
+    display_number(counter);
   }
 } // void loop(){
 #endif  //#ifdef SAVE_SAMPLE
