@@ -60,6 +60,20 @@ void display_number(unsigned int data1) {
   digitalWrite(chipSelectPin, HIGH);
 } 
 
+void turn_off(unsigned long delayTime)
+{
+  digitalWrite(chipSelectPin, LOW);
+  SPI1_write(0x0C); 
+  SPI1_write(0x00);      // Turn off the display 
+  digitalWrite(chipSelectPin, HIGH);
+
+  delay(delayTime);
+
+  digitalWrite(chipSelectPin, LOW);
+  SPI1_write(0x0C); 
+  SPI1_write(0x01);      // Turn on the display 
+  digitalWrite(chipSelectPin, HIGH);
+}
  
 void display_increment_number(unsigned int data1) { 
 

@@ -64,7 +64,17 @@ void updateSecondCounter()
 {
   unsigned long now = millis();
   if (now - timeLast > 10)
+  {
     secondCounter++;
+    if (secondCounter == targetCounter - SLOW_DOWN)
+    {
+       digitalWrite(SlowDownRelayPin,LOW);
+    }
+    if (secondCounter == targetCounter)
+    {
+       digitalWrite(StopRelayPin,LOW);
+    }
+  }
   timeLast = now;
 }
 void setup() { 
@@ -126,7 +136,7 @@ void setup() {
   
 #endif //#ifdef SAVE_HIST
 }
-void loop(){
+void loop(){  
 }
 #else  //#ifdef SAVE_SAMPLE
   if (digitalRead(RecordPin))
@@ -187,29 +197,58 @@ void loop(){
 //        delay(1); i+=10; // if delay(1) is used then it should be 15 rounds
     }
     int peak = peakHigh - peakLow;
-    if (peak > 20)
-    {
-      display_number(peak);
-      delay(500);
-    }
-    else
-    {
-      peak = 20;    // ensure H = minMax - 2 * peak
-    }
     mySerial.print("peak ");
     mySerial.println(peak);
+    display_number(peak);
+    
+    minOfMaximumValue = peakHigh;
+    maxOfMinimumValue = peakLow;
+    bool wasBelow=false,wasAbove=false;
+    for (int i = 0;i<6;)
+    {
+       int temp = analogRead(SensorPin);
+       if (temp < maxOfMinimumValue)
+       {
+         if (temp<peakLow)
+            peakLow=temp;
+         wasBelow = true;
+       }
+       if (wasBelow && temp > maxOfMinimumValue)
+       {
+         i++;
+         wasBelow = false;
+         mySerial.println("below maxMin");
+         maxOfMinimumValue = (maxOfMinimumValue + peakLow)/2;
+       }
+       if (temp > minOfMaximumValue)
+       {
+         if (temp>peakHigh)
+            peakHigh = temp;
+          wasAbove = true;
+       }
+       if (wasAbove && temp < minOfMaximumValue)
+       {
+         i++;
+         wasAbove = false;
+         mySerial.println("above");
+         minOfMaximumValue = (minOfMaximumValue + peakHigh) / 2;
+       }
+    }
+
+    mySerial.print("range ");
+    mySerial.println(peakHigh - peakLow);
     
     int temp,localMax,  localMin ;
     bool detectedBetweenThresholds = false;
-    highThreshold = peakLow - 20;//peak;
-    minOfMaximumValue = highThreshold;
-    lowThreshold = 200; //peakLow - 300;//10 * peak;
+    minOfMaximumValue = peakHigh;
+    maxOfMinimumValue = peakLow;
+    highThreshold = minOfMaximumValue - 20 ;
+    lowThreshold = maxOfMinimumValue + 20;
     mySerial.print("highThreshold ");
     mySerial.println(highThreshold);
     mySerial.print("lowThreshold ");
     mySerial.println(lowThreshold);
     display_number(highThreshold - lowThreshold);
-    int numberOdRewset=0;
     while (! digitalRead(RecordPin))
     {
           //....................................................................
@@ -217,7 +256,7 @@ void loop(){
           digitalWrite(LedPin,LOW);
           temp = analogRead(SensorPin);    // this is next at highThreshold
           localMax = temp;
-          localMin = highThreshold - peak - 20;
+          localMin = lowThreshold+5*(highThreshold-lowThreshold)/8;
           detectedBetweenThresholds = false;          
           while(temp > lowThreshold)    // start at highThreshhold and at lowThreshold
           {
@@ -233,7 +272,7 @@ void loop(){
             if (detectedBetweenThresholds && temp > highThreshold )
             {
                detectedBetweenThresholds = false;
-               if (localMin < lowThreshold+1*(highThreshold-lowThreshold)/8 ) 
+               if (localMin < lowThreshold+3*(highThreshold-lowThreshold)/8 ) 
                {
                  mySerial.print("localMin ");
                  mySerial.print(localMin);
@@ -248,7 +287,7 @@ void loop(){
                    mySerial.print("_");
                }
              
-               localMin = highThreshold - peak - 20;
+               localMin = lowThreshold+5*(highThreshold-lowThreshold)/8;
             }
             temp = analogRead(SensorPin);
           } // while(temp > lowThreshold)
@@ -283,7 +322,6 @@ void loop(){
             {
               detectedBetweenThresholds = true;
               localMax = temp;
-//              mySerial.print("-");
             }
             if (detectedBetweenThresholds && temp < lowThreshold )
             {
@@ -292,7 +330,7 @@ void loop(){
                mySerial.print("localMax ");
                mySerial.print(localMax);
                minOfMaximumValue = localMax;
-               highThreshold = minOfMaximumValue-peak;
+               highThreshold = minOfMaximumValue-20;
                mySerial.print(" RESET HHHHHHHHH highThreshold to ");
                mySerial.println(highThreshold);
                localMax = (lowThreshold + highThreshold)/2;
@@ -320,16 +358,22 @@ void loop(){
             display_number(minMaxRange);
             //mySerial.print("range ");
             //mySerial.println(minMaxRange);
-            if (minMaxRange < 20)
+            if (minMaxRange < peak)
             {
                mySerial.print("low range, reseting!!!");
-               maxOfMinumumValue = 0 ;
-               minOfMaximumValue = 1024;
-               minMaxRange = 0;
+               display_number(peakHigh);
+               turn_off(2000);
+               display_number(highThreshold);
+               turn_off(2000);
+               display_number(lowThreshold);
+               turn_off(2000);
+               display_number(peakLow);
+               turn_off(2000);
+               minOfMaximumValue = peakHigh;
+               maxOfMinimumValue = peakLow;
+               highThreshold = minOfMaximumValue - 20 ;
+               lowThreshold = maxOfMinimumValue + 20;
                shouldRestartCalculation = false;
-               highThreshold = peakLow;
-               lowThreshold = peakLow - 300;
-               display_number(0);
             }
           }
     } //    while(! digitalRead(RecordPin)
