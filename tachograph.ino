@@ -29,7 +29,6 @@ const int ThirdNumberPin = A5;
 const int FourthNumberPin = A2;
 const int SlowDownNumberPin = A1;
 
-
 #ifdef USE_SERIAL
 #define mySerial Serial
 #else // #ifdef USE_SERIAL
