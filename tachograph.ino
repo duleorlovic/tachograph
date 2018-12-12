@@ -1,11 +1,11 @@
 //
 // Kayak Electronics www.kayak-electronics.com
-// https://github.com/duleorlovic/tachograph
+// 
 // Double Digital Tachograph 
 // Januar 2013.
 // TODO: analogReadResolution to 9 bits
 
-//#define USE_SERIAL
+// #define USE_SERIAL
 
 #include <EEPROM.h>
 #include "EEPROMAnything.h"
@@ -26,8 +26,8 @@ const int SlowDownRelayPin = 8;
 const int FirstNumberPin = A4;
 const int SecondNumberPin = A3;
 const int ThirdNumberPin = A5;
-const int FourthNumberPin = A2;
-const int SlowDownNumberPin = A1;
+const int FourthNumberPin = A1; //A2;
+const int SlowDownNumberPin = A2; //A1;
 
 
 #ifdef USE_SERIAL
@@ -84,6 +84,7 @@ void setup() {
   SPI.begin();
   max7219_init1();               // initialize  max7219 
 
+
   int numberAnalog[4];
   numberAnalog[0] = analogRead(FirstNumberPin);
   numberAnalog[1] = analogRead(SecondNumberPin);
@@ -103,6 +104,7 @@ void setup() {
   delay(3000);
 
   slowDown = (analogRead(SlowDownNumberPin)+32)/64;
+
 
   EEPROM_readAnything(0, highThreshold);
   EEPROM_readAnything(10, lowThreshold);
